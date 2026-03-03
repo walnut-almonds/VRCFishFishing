@@ -10,6 +10,7 @@
 ```
 # 執行 bot
 d:/VRCFishFishing/.venv/Scripts/python.exe main.py
+uv run python main.py
 
 # 安裝依賴
 pip install opencv-python numpy mss sounddevice scipy pywin32 pydirectinput
@@ -33,6 +34,7 @@ pip install opencv-python numpy mss sounddevice scipy pywin32 pydirectinput
 - sounddevice loopback 需要 WASAPI，在 Windows 上搜尋名稱含 "loopback" 的裝置
 - `screen_capture.py` 的視窗邊框估算值（border=8, title_h=30）可能需依實際視窗微調
 - 咬勾音效樣本過短（~0.1s）時，NCC 峰值易在 0.2~0.3 區間漂移；僅降 `BITE_CORR_THRESHOLD` 會提高誤判，需搭配「峰值-次峰 margin」與「連續命中」條件
+- `ty check` 在 Windows 常無法解析 `win32api` / `win32gui`；stub 目前放在 `typings/`，並透過 `pyproject.toml` 的 `[tool.ty.environment] extra-paths = ["typings"]` 載入
 
 ## Decisions
 - 音訊指紋（互相關）為主，視覺「!」偵測為輔，任一觸發即算咬勾
@@ -40,4 +42,6 @@ pip install opencv-python numpy mss sounddevice scipy pywin32 pydirectinput
 - FINISH 偵測用黃綠色浮字像素計數，不使用 OCR（速度考量）
 
 ## Last Updated
+2026-03-04 - 將 Win32 stub 移至 `typings/`，並在 `pyproject.toml` 設定 `tool.ty.environment.extra-paths` 讓 `ty check` 可解析
+2026-03-04 - 整理 AGENTS.md：檢查流程重排並修正最終 CLI 指令為 `uv run python main.py`
 2026-03-02 - 音訊匹配穩定化：新增 `BITE_CORR_MARGIN`、`BITE_CORR_HIT_STREAK`，互相關加入次峰抑制與連續命中機制

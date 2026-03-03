@@ -1,0 +1,3 @@
+def mouse_event(
+    dwFlags: int, dx: int, dy: int, dwData: int, dwExtraInfo: int
+) -> None: ...
