@@ -4,7 +4,7 @@
 
 ## ⚠️ 開發狀態
 
-目前還在早期開發階段，因為是半成品所以無法正常運作，有相當多的錯誤等著解決
+目前還在早期開發階段，因為是半成品所以可能無法正常運作，有相當多的錯誤等著解決
 
 ## 環境需求
 - Windows
@@ -40,4 +40,15 @@ python main.py
 - `p`：暫停 / 繼續
 
 ---
-僅供學習與研究用途，請自行承擔使用風險。
+
+## 📝 License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 貢獻
+
+歡迎提交 Issue 和 Pull Request！
+
+## ⚖️ 免責聲明
+
+本工具僅供學習和研究使用。使用本工具可能違反遊戲的服務條款，請自行承擔使用風險。作者不對因使用本工具而導致的任何後果負責。

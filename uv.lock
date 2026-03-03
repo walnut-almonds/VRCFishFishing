@@ -195,12 +195,8 @@ dependencies = [
     { name = "pygetwindow" },
     { name = "pywin32" },
     { name = "scipy" },
-    { name = "sounddevice" },
-]
-
-[package.optional-dependencies]
-soundcard = [
     { name = "soundcard" },
+    { name = "sounddevice" },
 ]
 
 [package.metadata]
@@ -211,7 +207,6 @@ requires-dist = [
     { name = "pygetwindow", specifier = ">=0.0.9" },
     { name = "pywin32", specifier = ">=306" },
     { name = "scipy", specifier = ">=1.11" },
-    { name = "soundcard", marker = "extra == 'soundcard'", specifier = ">=0.4" },
+    { name = "soundcard", specifier = ">=0.4" },
     { name = "sounddevice", specifier = ">=0.4" },
 ]
-provides-extras = ["soundcard"]

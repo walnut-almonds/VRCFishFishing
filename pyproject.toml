@@ -15,11 +15,6 @@ dependencies = [
     "scipy>=1.11",
     "pywin32>=306",
     "pygetwindow>=0.0.9",
-]
-
-[project.optional-dependencies]
-# soundcard 提供更穩定的 WASAPI loopback，建議安裝
-soundcard = [
     "soundcard>=0.4",
 ]
 
