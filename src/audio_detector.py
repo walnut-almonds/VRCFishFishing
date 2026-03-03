@@ -6,15 +6,17 @@
 # 使用 sounddevice 的 loopback 模式監聽系統音訊輸出，
 # 不需要任何麥克風，直接捕捉遊戲播放的音效。
 
-import threading
-import time
+import importlib
 import os
 import queue
-import importlib
+import threading
+import time
+from typing import Any, cast
+
 import numpy as np
-import sounddevice as sd
 import scipy.io.wavfile as wavfile
 import scipy.signal as signal
+import sounddevice as sd
 
 # 可選：WASAPI loopback 備援
 try:
@@ -27,11 +29,19 @@ try:
 except Exception:
     pythoncom = None
 from src.config import (
-    AUDIO_SAMPLE_RATE, AUDIO_CHUNK_SIZE, AUDIO_CHANNELS,
-    BITE_SOUND_PATH, BITE_CORR_THRESHOLD, AUDIO_DEBUG_CORR, AUDIO_COOLDOWN,
-    BITE_CORR_MARGIN, BITE_CORR_HIT_STREAK,
-    BITE_RMS_MULTIPLIER, BITE_RMS_BANDPASS,
-    AUDIO_DEBUG_RMS, AUDIO_DEBUG_RMS_INTERVAL,
+    AUDIO_CHANNELS,
+    AUDIO_CHUNK_SIZE,
+    AUDIO_COOLDOWN,
+    AUDIO_DEBUG_CORR,
+    AUDIO_DEBUG_RMS,
+    AUDIO_DEBUG_RMS_INTERVAL,
+    AUDIO_SAMPLE_RATE,
+    BITE_CORR_HIT_STREAK,
+    BITE_CORR_MARGIN,
+    BITE_CORR_THRESHOLD,
+    BITE_RMS_BANDPASS,
+    BITE_RMS_MULTIPLIER,
+    BITE_SOUND_PATH,
 )
 from src.utils import log
 
@@ -40,10 +50,10 @@ from src.utils import log
 _np_fromstring_original = np.fromstring
 
 
-def _np_fromstring_compat(string, dtype=float, count=-1, sep=''):
+def _np_fromstring_compat(string, dtype=float, count=-1, sep=""):
     # NumPy 2.x 移除 binary mode fromstring；
     # soundcard 會傳入 cffi buffer（非 bytes），因此不能只判斷 isinstance。
-    if sep == '':
+    if sep == "":
         try:
             return np.frombuffer(string, dtype=dtype, count=count)
         except Exception:
@@ -51,13 +61,13 @@ def _np_fromstring_compat(string, dtype=float, count=-1, sep=''):
     return _np_fromstring_original(string, dtype=dtype, count=count, sep=sep)
 
 
-np.fromstring = _np_fromstring_compat
+cast(Any, np).fromstring = _np_fromstring_compat
 
 # soundcard.mediafoundation 內部使用自身的 numpy 參照，顯式覆蓋其 fromstring
 if sc is not None:
     try:
         _sc_mf = importlib.import_module("soundcard.mediafoundation")
-        _sc_mf.numpy.fromstring = _np_fromstring_compat
+        cast(Any, _sc_mf.numpy).fromstring = _np_fromstring_compat
     except Exception:
         pass
 
@@ -69,7 +79,7 @@ class AudioDetector:
 
     def __init__(self):
         self.triggered = threading.Event()
-        self._active   = False
+        self._active = False
         self._thread: threading.Thread | None = None
         self._cooldown_until = 0.0
 
@@ -106,7 +116,9 @@ class AudioDetector:
                 data /= mx
             self._ref_wave = data
             self._use_corr = True
-            log(f"[Audio] 載入參考音效 ({len(data)} samples @ {AUDIO_SAMPLE_RATE}Hz)，使用互相關方案")
+            log(
+                f"[Audio] 載入參考音效 ({len(data)} samples @ {AUDIO_SAMPLE_RATE}Hz)，使用互相關方案"
+            )
         except Exception as e:
             log(f"[Audio] 載入參考音效失敗：{e}，改用 RMS 備援方案")
 
@@ -145,26 +157,28 @@ class AudioDetector:
     def _listen_loop(self):
         """背景執行緒：持續讀取系統音訊並判斷是否咬勾。"""
         # 滾動緩衝區，長度為參考波形的 2 倍（確保能找到完整匹配）
-        buf_size = (len(self._ref_wave) * 2
-                    if self._ref_wave is not None
-                    else AUDIO_CHUNK_SIZE * 4)
+        buf_size = (
+            len(self._ref_wave) * 2
+            if self._ref_wave is not None
+            else AUDIO_CHUNK_SIZE * 4
+        )
         buffer = np.zeros(buf_size, dtype=np.float32)
 
         # 嘗試取得 loopback 裝置（WASAPI loopback）
         device_idx = self._find_loopback_device()
 
         # 設定 WASAPI loopback 模式（Windows 專用），不設定此項則抓到的是麥克風而非遊戲音效
-        wasapi_settings = None
+        wasapi_settings: Any = None
         wasapi_loopback_supported = False
         try:
-            wasapi_settings = sd.WasapiSettings(loopback=True)
+            wasapi_settings = cast(Any, sd.WasapiSettings)(loopback=True)
             wasapi_loopback_supported = True
         except TypeError as e:
             # 某些 sounddevice/PortAudio 組合沒有 loopback 參數
             # （此時即使有 WASAPI 也無法透過 sounddevice 直接啟用 loopback）
             log(f"[Audio] 目前 sounddevice 不支援 loopback 參數：{e}")
             try:
-                wasapi_settings = sd.WasapiSettings()
+                wasapi_settings = cast(Any, sd.WasapiSettings)()
             except Exception:
                 wasapi_settings = None
         except Exception as e:
@@ -172,20 +186,30 @@ class AudioDetector:
 
         # 只有「輸出裝置」才能使用 WASAPI loopback
         use_loopback = False
-        if wasapi_loopback_supported and wasapi_settings is not None and device_idx is not None:
+        if (
+            wasapi_loopback_supported
+            and wasapi_settings is not None
+            and device_idx is not None
+        ):
             try:
                 dev = sd.query_devices(device_idx)
                 use_loopback = int(dev.get("max_output_channels", 0)) > 0
                 if not use_loopback:
-                    log("[Audio] 目前裝置非輸出端，無法啟用 WASAPI loopback，改用一般輸入模式")
+                    log(
+                        "[Audio] 目前裝置非輸出端，無法啟用 WASAPI loopback，改用一般輸入模式"
+                    )
             except Exception:
                 use_loopback = False
         elif not wasapi_loopback_supported:
-            log("[Audio] 此環境的 sounddevice 無法啟用 WASAPI loopback，將退回一般輸入模式")
+            log(
+                "[Audio] 此環境的 sounddevice 無法啟用 WASAPI loopback，將退回一般輸入模式"
+            )
             # 優先改走 soundcard 的喇叭 loopback，避免誤用無訊號的 Stereo Mix
             if self._try_soundcard_loopback(device_idx):
                 return
-            log("[Audio] soundcard loopback 不可用，才改用一般輸入裝置（可能是麥克風/Stereo Mix）")
+            log(
+                "[Audio] soundcard loopback 不可用，才改用一般輸入裝置（可能是麥克風/Stereo Mix）"
+            )
 
         # 非 loopback 模式下，不能使用「純輸出」裝置當 InputStream
         # （其 max_input_channels 常為 0，會觸發 Invalid number of channels）
@@ -193,7 +217,9 @@ class AudioDetector:
             try:
                 dev = sd.query_devices(device_idx)
                 if int(dev.get("max_input_channels", 0)) <= 0:
-                    log("[Audio] 目前裝置是輸出端且無輸入聲道，改用可錄音裝置（Stereo Mix/預設輸入）")
+                    log(
+                        "[Audio] 目前裝置是輸出端且無輸入聲道，改用可錄音裝置（Stereo Mix/預設輸入）"
+                    )
                     device_idx = self._find_recording_input_device()
             except Exception:
                 device_idx = self._find_recording_input_device()
@@ -204,13 +230,19 @@ class AudioDetector:
             stream_rate = AUDIO_SAMPLE_RATE
             if device_idx is not None:
                 try:
-                    stream_rate = int(sd.query_devices(device_idx).get("default_samplerate", AUDIO_SAMPLE_RATE))
+                    stream_rate = int(
+                        sd.query_devices(device_idx).get(
+                            "default_samplerate", AUDIO_SAMPLE_RATE
+                        )
+                    )
                 except Exception:
                     stream_rate = AUDIO_SAMPLE_RATE
             stream_rate = max(8000, stream_rate)
-            stream_blocksize = max(256, int(AUDIO_CHUNK_SIZE * stream_rate / AUDIO_SAMPLE_RATE))
+            stream_blocksize = max(
+                256, int(AUDIO_CHUNK_SIZE * stream_rate / AUDIO_SAMPLE_RATE)
+            )
 
-            stream_kwargs = dict(
+            stream_kwargs: dict[str, Any] = dict(
                 samplerate=stream_rate,
                 dtype="float32",
                 blocksize=stream_blocksize,
@@ -221,26 +253,39 @@ class AudioDetector:
                 # loopback 模式下以輸出聲道數為準（通常是 2）
                 if device_idx is not None:
                     out_ch = sd.query_devices(device_idx).get("max_output_channels", 0)
-                    stream_kwargs["channels"] = min(2, int(out_ch)) if int(out_ch) > 0 else 2
+                    stream_kwargs["channels"] = (
+                        min(2, int(out_ch)) if int(out_ch) > 0 else 2
+                    )
                 else:
                     stream_kwargs["channels"] = 2
             else:
                 # 一般輸入模式下，聲道數不能超過 max_input_channels
                 if device_idx is not None:
-                    max_in = int(sd.query_devices(device_idx).get("max_input_channels", 0))
-                    stream_kwargs["channels"] = min(max(1, AUDIO_CHANNELS), max(1, max_in))
+                    max_in = int(
+                        sd.query_devices(device_idx).get("max_input_channels", 0)
+                    )
+                    stream_kwargs["channels"] = min(
+                        max(1, AUDIO_CHANNELS), max(1, max_in)
+                    )
                 else:
                     stream_kwargs["channels"] = AUDIO_CHANNELS
 
             # 使用 callback 模式避免 WDM-KS 下 Blocking API not supported 錯誤
             audio_q: queue.Queue[np.ndarray] = queue.Queue(maxsize=32)
 
-            def _audio_callback(indata, frames, tinfo, status):
+            def _audio_callback(
+                indata: np.ndarray,
+                frames: int,
+                tinfo: Any,
+                status: Any,
+            ) -> None:
                 if status:
                     log(f"[Audio] callback 狀態：{status}")
                 chunk = indata[:, 0] if indata.ndim > 1 else indata.flatten()
                 if stream_rate != AUDIO_SAMPLE_RATE and len(chunk) > 8:
-                    target_len = max(1, int(len(chunk) * AUDIO_SAMPLE_RATE / stream_rate))
+                    target_len = max(
+                        1, int(len(chunk) * AUDIO_SAMPLE_RATE / stream_rate)
+                    )
                     chunk = signal.resample(chunk, target_len).astype(np.float32)
                 try:
                     audio_q.put_nowait(chunk.copy())
@@ -255,8 +300,14 @@ class AudioDetector:
             stream_kwargs["callback"] = _audio_callback
 
             with sd.InputStream(**stream_kwargs):
-                dev_name = sd.query_devices(device_idx)["name"] if device_idx is not None else "預設"
-                log(f"[Audio] 使用裝置：{dev_name}（loopback={'是' if use_loopback else '否'}，sr={stream_rate}）")
+                dev_name = (
+                    sd.query_devices(device_idx)["name"]
+                    if device_idx is not None
+                    else "預設"
+                )
+                log(
+                    f"[Audio] 使用裝置：{dev_name}（loopback={'是' if use_loopback else '否'}，sr={stream_rate}）"
+                )
                 last_rms_log_t = 0.0
                 while self._active:
                     try:
@@ -265,16 +316,18 @@ class AudioDetector:
                         continue
 
                     # 即時 RMS（裝置有無聲音的快速診斷）
-                    self._last_rms = float(np.sqrt(np.mean(chunk ** 2)))
+                    self._last_rms = float(np.sqrt(np.mean(chunk**2)))
                     if AUDIO_DEBUG_RMS:
                         now = time.time()
                         if now - last_rms_log_t >= AUDIO_DEBUG_RMS_INTERVAL:
-                            log(f"[Audio][RMS] device={dev_name}, rms={self._last_rms:.6f}")
+                            log(
+                                f"[Audio][RMS] device={dev_name}, rms={self._last_rms:.6f}"
+                            )
                             last_rms_log_t = now
 
                     # 更新滾動緩衝區
                     buffer = np.roll(buffer, -len(chunk))
-                    buffer[-len(chunk):] = chunk
+                    buffer[-len(chunk) :] = chunk
 
                     if time.time() < self._cooldown_until:
                         continue
@@ -303,7 +356,8 @@ class AudioDetector:
         try:
             hostapis = sd.query_hostapis()
             wasapi_api_indices = {
-                i for i, api in enumerate(hostapis)
+                i
+                for i, api in enumerate(hostapis)
                 if "wasapi" in str(api.get("name", "")).lower()
             }
 
@@ -314,15 +368,22 @@ class AudioDetector:
                     if default_out >= 0:
                         dev = sd.query_devices(default_out)
                         if int(dev.get("max_output_channels", 0)) > 0:
-                            log(f"[Audio] 使用 WASAPI 預設輸出裝置作為 loopback: {dev['name']} "
-                                f"(out_ch={dev['max_output_channels']})")
+                            log(
+                                f"[Audio] 使用 WASAPI 預設輸出裝置作為 loopback: {dev['name']} "
+                                f"(out_ch={dev['max_output_channels']})"
+                            )
                             return default_out
 
             # 次選：任一 WASAPI 輸出裝置
             for i, dev in enumerate(devices):
-                if int(dev.get("hostapi", -1)) in wasapi_api_indices and int(dev.get("max_output_channels", 0)) > 0:
-                    log(f"[Audio] 使用 WASAPI 輸出裝置作為 loopback: {dev['name']} "
-                        f"(out_ch={dev['max_output_channels']})")
+                if (
+                    int(dev.get("hostapi", -1)) in wasapi_api_indices
+                    and int(dev.get("max_output_channels", 0)) > 0
+                ):
+                    log(
+                        f"[Audio] 使用 WASAPI 輸出裝置作為 loopback: {dev['name']} "
+                        f"(out_ch={dev['max_output_channels']})"
+                    )
                     return i
         except Exception:
             pass
@@ -332,11 +393,21 @@ class AudioDetector:
         stereo_candidates = []
         for i, dev in enumerate(devices):
             name_lower = dev["name"].lower()
-            if any(k in name_lower for k in ("stereo mix", "立體聲混音", "what u hear", "混音")) and dev["max_input_channels"] > 0:
+            if (
+                any(
+                    k in name_lower
+                    for k in ("stereo mix", "立體聲混音", "what u hear", "混音")
+                )
+                and dev["max_input_channels"] > 0
+            ):
                 api_idx = int(dev.get("hostapi", -1))
                 api_name = ""
                 try:
-                    api_name = sd.query_hostapis(api_idx)["name"].lower() if api_idx >= 0 else ""
+                    api_name = (
+                        sd.query_hostapis(api_idx)["name"].lower()
+                        if api_idx >= 0
+                        else ""
+                    )
                 except Exception:
                     api_name = ""
 
@@ -367,12 +438,17 @@ class AudioDetector:
             for i, dev in enumerate(devices):
                 name_lower = str(dev.get("name", "")).lower()
                 if int(dev.get("max_input_channels", 0)) > 0 and any(
-                    k in name_lower for k in ("stereo mix", "立體聲混音", "what u hear", "混音")
+                    k in name_lower
+                    for k in ("stereo mix", "立體聲混音", "what u hear", "混音")
                 ):
                     log(f"[Audio] 改用 Stereo Mix 輸入: {dev['name']}")
                     return i
 
-            default_in = sd.default.device[0] if isinstance(sd.default.device, (list, tuple)) else None
+            default_in = (
+                sd.default.device[0]
+                if isinstance(sd.default.device, (list, tuple))
+                else None
+            )
             if default_in is not None and int(default_in) >= 0:
                 dev = sd.query_devices(int(default_in))
                 if int(dev.get("max_input_channels", 0)) > 0:
@@ -394,8 +470,10 @@ class AudioDetector:
         com_inited = False
         if pythoncom is not None:
             try:
-                pythoncom.CoInitialize()
-                com_inited = True
+                co_initialize = getattr(pythoncom, "CoInitialize", None)
+                if callable(co_initialize):
+                    co_initialize()
+                    com_inited = True
             except Exception as e:
                 log(f"[Audio] COM 初始化失敗：{e}")
 
@@ -427,7 +505,11 @@ class AudioDetector:
                     short_key = target_name.split("(")[0].strip().lower()
                     for mic in mics:
                         rep = str(mic).lower()
-                        if "loopback" in rep and short_key and short_key in mic.name.lower():
+                        if (
+                            "loopback" in rep
+                            and short_key
+                            and short_key in mic.name.lower()
+                        ):
                             loopback_mic = mic
                             break
 
@@ -443,26 +525,32 @@ class AudioDetector:
                 return False
 
             log(f"[Audio] 啟用 soundcard loopback 備援：{loopback_mic}")
-            buf_size = (len(self._ref_wave) * 2
-                        if self._ref_wave is not None
-                        else AUDIO_CHUNK_SIZE * 4)
+            buf_size = (
+                len(self._ref_wave) * 2
+                if self._ref_wave is not None
+                else AUDIO_CHUNK_SIZE * 4
+            )
             buffer = np.zeros(buf_size, dtype=np.float32)
             last_rms_log_t = 0.0
 
-            with loopback_mic.recorder(samplerate=AUDIO_SAMPLE_RATE, channels=1, blocksize=AUDIO_CHUNK_SIZE) as rec:
+            with loopback_mic.recorder(
+                samplerate=AUDIO_SAMPLE_RATE, channels=1, blocksize=AUDIO_CHUNK_SIZE
+            ) as rec:
                 while self._active:
                     data = rec.record(numframes=AUDIO_CHUNK_SIZE)
                     chunk = data[:, 0] if data.ndim > 1 else data.flatten()
 
-                    self._last_rms = float(np.sqrt(np.mean(chunk ** 2)))
+                    self._last_rms = float(np.sqrt(np.mean(chunk**2)))
                     if AUDIO_DEBUG_RMS:
                         now = time.time()
                         if now - last_rms_log_t >= AUDIO_DEBUG_RMS_INTERVAL:
-                            log(f"[Audio][RMS] device={loopback_mic.name}, rms={self._last_rms:.6f}")
+                            log(
+                                f"[Audio][RMS] device={loopback_mic.name}, rms={self._last_rms:.6f}"
+                            )
                             last_rms_log_t = now
 
                     buffer = np.roll(buffer, -len(chunk))
-                    buffer[-len(chunk):] = chunk
+                    buffer[-len(chunk) :] = chunk
 
                     if time.time() < self._cooldown_until:
                         continue
@@ -479,7 +567,9 @@ class AudioDetector:
         finally:
             if com_inited and pythoncom is not None:
                 try:
-                    pythoncom.CoUninitialize()
+                    co_uninitialize = getattr(pythoncom, "CoUninitialize", None)
+                    if callable(co_uninitialize):
+                        co_uninitialize()
                 except Exception:
                     pass
 
@@ -487,19 +577,26 @@ class AudioDetector:
 
     def _check_correlation(self, buffer: np.ndarray):
         ref = self._ref_wave
+        if ref is None:
+            self._corr_hit_streak = 0
+            return
+
+        ref_arr = np.asarray(ref, dtype=np.float32)
+        buf_arr = np.asarray(buffer, dtype=np.float32)
+
         # 幾乎無聲，略過
-        mx = np.max(np.abs(buffer))
+        mx = np.max(np.abs(buf_arr))
         if mx < 1e-4:
             self._corr_hit_streak = 0
             return
 
         # 真正的 NCC（normalized cross-correlation）
         # 可容忍整體音量差異，對實際遊戲環境更穩定。
-        ref_z = ref - np.mean(ref)
-        buf_z = buffer - np.mean(buffer)
+        ref_z = ref_arr - float(np.mean(ref_arr, dtype=np.float64))
+        buf_z = buf_arr - float(np.mean(buf_arr, dtype=np.float64))
 
         # 避免近靜音片段造成 NCC 數值不穩定
-        buf_power = float(np.mean(buf_z ** 2))
+        buf_power = float(np.mean(buf_z**2))
         if buf_power < 1e-8:
             self._corr_hit_streak = 0
             return
@@ -509,7 +606,7 @@ class AudioDetector:
 
         # 每個對齊位置對應的 buffer 區段能量
         win = np.ones(len(ref_z), dtype=np.float32)
-        energy = signal.convolve(buf_z ** 2, win, mode="valid")
+        energy = signal.convolve(buf_z**2, win, mode="valid")
         buf_energy = np.sqrt(np.clip(energy, 0.0, None)) + 1e-10
 
         corr_norm = corr / (ref_norm * buf_energy)
@@ -523,7 +620,9 @@ class AudioDetector:
         lo = max(0, peak_idx - exclusion)
         hi = min(len(corr_norm), peak_idx + exclusion + 1)
         second_candidates = np.concatenate((corr_norm[:lo], corr_norm[hi:]))
-        second_peak = float(np.max(second_candidates)) if second_candidates.size > 0 else -1.0
+        second_peak = (
+            float(np.max(second_candidates)) if second_candidates.size > 0 else -1.0
+        )
         peak_margin = peak - second_peak
 
         is_hit = (peak >= BITE_CORR_THRESHOLD) and (peak_margin >= BITE_CORR_MARGIN)
@@ -545,7 +644,7 @@ class AudioDetector:
     # ── RMS 備援方案 ──────────────────────────────────────────────────────────
 
     def _check_rms(self, chunk: np.ndarray):
-        rms = float(np.sqrt(np.mean(chunk ** 2)))
+        rms = float(np.sqrt(np.mean(chunk**2)))
 
         # 動態更新靜默基準（低通平均）
         self._rms_baseline = self._rms_baseline * 0.98 + rms * 0.02
@@ -553,7 +652,9 @@ class AudioDetector:
         if rms > self._rms_baseline * BITE_RMS_MULTIPLIER:
             # 額外做 bandpass 確認
             if self._bandpass_energy(chunk):
-                log(f"[Audio] RMS 觸發！rms={rms:.4f}, baseline={self._rms_baseline:.4f}")
+                log(
+                    f"[Audio] RMS 觸發！rms={rms:.4f}, baseline={self._rms_baseline:.4f}"
+                )
                 self._trigger()
 
     def _bandpass_energy(self, chunk: np.ndarray) -> bool:
@@ -562,8 +663,8 @@ class AudioDetector:
         nyq = AUDIO_SAMPLE_RATE / 2
         b, a = signal.butter(4, [lo / nyq, hi / nyq], btype="band")
         filtered = signal.lfilter(b, a, chunk)
-        orig_energy = float(np.mean(chunk ** 2)) + 1e-10
-        filt_energy = float(np.mean(filtered ** 2))
+        orig_energy = float(np.mean(chunk**2)) + 1e-10
+        filt_energy = float(np.mean(filtered**2))
         return (filt_energy / orig_energy) > 0.3
 
     # ── 觸發 ──────────────────────────────────────────────────────────────────

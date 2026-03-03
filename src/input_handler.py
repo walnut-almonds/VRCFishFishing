@@ -2,6 +2,7 @@
 # 使用 win32api 直接發送滑鼠事件，避免被 VRChat 的輸入鉤子攔截
 
 import time
+
 import win32api
 import win32con
 
@@ -13,7 +14,7 @@ class InputHandler:
     """
 
     def __init__(self):
-        self._lmb_down = False   # 追蹤當前左鍵狀態，避免重複發送
+        self._lmb_down = False  # 追蹤當前左鍵狀態，避免重複發送
 
     # ── 左鍵 ─────────────────────────────────────────────────────────────────
 

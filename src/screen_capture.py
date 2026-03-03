@@ -1,19 +1,19 @@
 # screen_capture.py - 畫面擷取模組
 # 定位 VRChat 視窗並進行截圖，支援解析度縮放
 
-import numpy as np
-import mss
-import win32gui
-import win32con
 import cv2
-from src.config import WINDOW_TITLE, TARGET_WIDTH, TARGET_HEIGHT
+import mss
+import numpy as np
+import win32gui
+
+from src.config import TARGET_HEIGHT, TARGET_WIDTH, WINDOW_TITLE
 
 
 class ScreenCapture:
     def __init__(self):
         self._sct = mss.mss()
         self.hwnd: int = 0
-        self.win_rect: dict = {}   # {"left", "top", "width", "height"}
+        self.win_rect: dict = {}  # {"left", "top", "width", "height"}
         self.scale_x: float = 1.0
         self.scale_y: float = 1.0
         self._locate_window()
@@ -22,6 +22,7 @@ class ScreenCapture:
 
     def _locate_window(self) -> bool:
         """尋找 VRChat 視窗並記錄位置與縮放比例，回傳是否成功。"""
+
         def _cb(hwnd, _):
             if win32gui.IsWindowVisible(hwnd):
                 title = win32gui.GetWindowText(hwnd)
@@ -40,9 +41,9 @@ class ScreenCapture:
         border = 8
         title_h = 30
         self.win_rect = {
-            "left":   left + border,
-            "top":    top  + title_h,
-            "width":  right - left - border * 2,
+            "left": left + border,
+            "top": top + title_h,
+            "width": right - left - border * 2,
             "height": bottom - top - title_h - border,
         }
         w = self.win_rect["width"]
@@ -81,9 +82,9 @@ class ScreenCapture:
         rw = int(w * self.scale_x)
         rh = int(h * self.scale_y)
         region = {
-            "left":   self.win_rect["left"] + rx,
-            "top":    self.win_rect["top"]  + ry,
-            "width":  max(rw, 1),
+            "left": self.win_rect["left"] + rx,
+            "top": self.win_rect["top"] + ry,
+            "width": max(rw, 1),
             "height": max(rh, 1),
         }
         try:
@@ -101,7 +102,7 @@ class ScreenCapture:
         將 TARGET 解析度座標轉換為螢幕絕對座標（供滑鼠輸入使用）。
         """
         sx = self.win_rect["left"] + int(x * self.scale_x)
-        sy = self.win_rect["top"]  + int(y * self.scale_y)
+        sy = self.win_rect["top"] + int(y * self.scale_y)
         return sx, sy
 
     # ── 工具 ──────────────────────────────────────────────────────────────────
@@ -113,5 +114,6 @@ class ScreenCapture:
     @staticmethod
     def resize_to_target(frame: np.ndarray) -> np.ndarray:
         """將截圖縮放至 TARGET 解析度，方便與固定 ROI 座標對齊。"""
-        return cv2.resize(frame, (TARGET_WIDTH, TARGET_HEIGHT),
-                          interpolation=cv2.INTER_LINEAR)
+        return cv2.resize(
+            frame, (TARGET_WIDTH, TARGET_HEIGHT), interpolation=cv2.INTER_LINEAR
+        )

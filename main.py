@@ -7,50 +7,51 @@
 #   q  → 安全退出
 #   p  → 暫停 / 繼續
 
-import time
 import random
-import sys
+import time
 
-from src.screen_capture import ScreenCapture
-from src.state_detector  import StateDetector
-from src.tension_handler import TensionHandler, TensionResult
-from src.audio_detector  import AudioDetector
-from src.input_handler   import InputHandler
-from src.utils           import log, DebugOverlay, Stats
-from src.config          import (
-    LOOP_INTERVAL,
-    CAST_DELAY_MIN, CAST_DELAY_MAX,
-    WAIT_TIMEOUT,
-    BITE_REACT_MIN, BITE_REACT_MAX,
-    TENSION_DISAPPEAR_FRAMES,
-    FINISH_WAIT,
+from src.audio_detector import AudioDetector
+from src.config import (
+    BITE_REACT_MAX,
+    BITE_REACT_MIN,
+    CAST_DELAY_MAX,
+    CAST_DELAY_MIN,
     DEBUG_OVERLAY,
+    FINISH_WAIT,
+    LOOP_INTERVAL,
+    TENSION_DISAPPEAR_FRAMES,
+    WAIT_TIMEOUT,
 )
-
+from src.input_handler import InputHandler
+from src.screen_capture import ScreenCapture
+from src.state_detector import StateDetector
+from src.tension_handler import TensionHandler, TensionResult
+from src.utils import DebugOverlay, Stats, log
 
 # ── 狀態常數 ──────────────────────────────────────────────────────────────────
 
+
 class State:
-    IDLE    = "IDLE"
+    IDLE = "IDLE"
     WAITING = "WAITING"
     TENSION = "TENSION"
-    FINISH  = "FINISH"
+    FINISH = "FINISH"
 
 
 # ── 主類別 ────────────────────────────────────────────────────────────────────
 
-class FishingBot:
 
+class FishingBot:
     def __init__(self):
         log("[Bot] 初始化中...")
-        self.capture  = ScreenCapture()
+        self.capture = ScreenCapture()
         self.detector = StateDetector()
-        self.tension  = TensionHandler()
-        self.audio    = AudioDetector()
-        self.input    = InputHandler()
-        self.stats    = Stats()
-        self.state    = State.IDLE
-        self._paused  = False
+        self.tension = TensionHandler()
+        self.audio = AudioDetector()
+        self.input = InputHandler()
+        self.stats = Stats()
+        self.state = State.IDLE
+        self._paused = False
         self._running = True
         self._tension_miss_frames = 0  # 連續找不到拉力計的幀數
         self._last_ui_info: dict | None = None  # 供 debug overlay 使用
@@ -83,10 +84,14 @@ class FishingBot:
                 frame_t = ScreenCapture.resize_to_target(frame)
 
                 # 執行當前狀態處理
-                if   self.state == State.IDLE:    self._handle_idle(frame_t)
-                elif self.state == State.WAITING:  self._handle_waiting(frame_t)
-                elif self.state == State.TENSION:  self._handle_tension(frame_t)
-                elif self.state == State.FINISH:   self._handle_finish(frame_t)
+                if self.state == State.IDLE:
+                    self._handle_idle(frame_t)
+                elif self.state == State.WAITING:
+                    self._handle_waiting(frame_t)
+                elif self.state == State.TENSION:
+                    self._handle_tension(frame_t)
+                elif self.state == State.FINISH:
+                    self._handle_finish(frame_t)
 
                 # Debug overlay（WAITING / FINISH 的內部迴圈自行處理，TENSION 透過 _last_ui_info 傳遞）
                 if self.state not in (State.WAITING, State.FINISH):
@@ -196,7 +201,9 @@ class FishingBot:
 
         if ui_info is None:
             self._tension_miss_frames += 1
-            log(f"[TENSION] 找不到 UI ({self._tension_miss_frames}/{TENSION_DISAPPEAR_FRAMES})")
+            log(
+                f"[TENSION] 找不到 UI ({self._tension_miss_frames}/{TENSION_DISAPPEAR_FRAMES})"
+            )
             if self._tension_miss_frames >= TENSION_DISAPPEAR_FRAMES:
                 log("[TENSION] UI 持續消失，放棄本次釣魚")
                 self.input.lmb_release()

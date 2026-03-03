@@ -9,24 +9,32 @@
 # 呼叫前請先將 frame resize 至 TARGET。
 
 import os
+
 import cv2
 import numpy as np
+
 from src.config import (
-    EXCLAIM_HSV_LOW, EXCLAIM_HSV_HIGH,
-    EXCLAIM_MATCH_THRESH, EXCLAIM_DIFF_THRESH, EXCLAIM_TEMPLATE_DIR,
-    TENSION_BLUE_HSV_LOW, TENSION_BLUE_HSV_HIGH,
-    TENSION_BAR_ASPECT_MIN, TENSION_BAR_ASPECT_MAX,
-    TENSION_BAR_AREA_MIN, TENSION_BAR_AREA_MAX,
-    TENSION_PAIR_MAX_DIST,
-    FINISH_YELLOW_HSV_LOW, FINISH_YELLOW_HSV_HIGH,
+    EXCLAIM_DIFF_THRESH,
+    EXCLAIM_HSV_HIGH,
+    EXCLAIM_HSV_LOW,
+    EXCLAIM_MATCH_THRESH,
+    EXCLAIM_TEMPLATE_DIR,
     FINISH_PIXEL_THRESH,
-    TARGET_WIDTH, TARGET_HEIGHT,
+    FINISH_YELLOW_HSV_HIGH,
+    FINISH_YELLOW_HSV_LOW,
+    TARGET_HEIGHT,
+    TENSION_BAR_AREA_MAX,
+    TENSION_BAR_AREA_MIN,
+    TENSION_BAR_ASPECT_MAX,
+    TENSION_BAR_ASPECT_MIN,
+    TENSION_BLUE_HSV_HIGH,
+    TENSION_BLUE_HSV_LOW,
+    TENSION_PAIR_MAX_DIST,
 )
 from src.utils import log
 
 
 class StateDetector:
-
     def __init__(self):
         self._exclaim_templates: list[np.ndarray] = []
         self._prev_frame: np.ndarray | None = None
@@ -91,7 +99,7 @@ class StateDetector:
         先找藍紫色輪廓，再驗證其長寬比是否符合「!」形狀。
         """
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lo = np.array(EXCLAIM_HSV_LOW,  dtype=np.uint8)
+        lo = np.array(EXCLAIM_HSV_LOW, dtype=np.uint8)
         hi = np.array(EXCLAIM_HSV_HIGH, dtype=np.uint8)
         mask = cv2.inRange(hsv, lo, hi)
 
@@ -99,8 +107,7 @@ class StateDetector:
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
-                                       cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             area = cv2.contourArea(cnt)
             if area < 40 or area > 6000:
@@ -127,8 +134,10 @@ class StateDetector:
         """
         h, w = frame.shape[:2]
         # 中央 ROI
-        cx0 = int(w * 0.30); cx1 = int(w * 0.70)
-        cy0 = int(h * 0.10); cy1 = int(h * 0.70)
+        cx0 = int(w * 0.30)
+        cx1 = int(w * 0.70)
+        cy0 = int(h * 0.10)
+        cy1 = int(h * 0.70)
         roi = frame[cy0:cy1, cx0:cx1]
 
         if self._prev_frame is None:
@@ -164,15 +173,14 @@ class StateDetector:
         找不到時回傳 None。
         """
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        lo = np.array(TENSION_BLUE_HSV_LOW,  dtype=np.uint8)
+        lo = np.array(TENSION_BLUE_HSV_LOW, dtype=np.uint8)
         hi = np.array(TENSION_BLUE_HSV_HIGH, dtype=np.uint8)
         mask = cv2.inRange(hsv, lo, hi)
 
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 5))
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
-                                       cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # 篩選符合長寬比與面積的細長矩形
         candidates = []
@@ -213,9 +221,9 @@ class StateDetector:
         ui_h = max(y2s) - ui_y + 4
 
         result = {
-            "left_bar":  left_bar,
+            "left_bar": left_bar,
             "right_bar": right_bar,
-            "ui_box":    (ui_x, ui_y, ui_w, ui_h),
+            "ui_box": (ui_x, ui_y, ui_w, ui_h),
         }
 
         # 驗證內部結構
@@ -239,7 +247,9 @@ class StateDetector:
                 if dist > TENSION_PAIR_MAX_DIST:
                     continue
                 # 高度相近（差距在 40% 以內）
-                h_ratio = min(a[3], b[3]) / max(a[3], b[3]) if max(a[3], b[3]) > 0 else 0
+                h_ratio = (
+                    min(a[3], b[3]) / max(a[3], b[3]) if max(a[3], b[3]) > 0 else 0
+                )
                 if h_ratio < 0.5:
                     continue
                 # 垂直對齊（Y 重疊）
@@ -275,9 +285,11 @@ class StateDetector:
         # 右側應含有白色像素（拉力條白區）
         right_region = region[:, mid:]
         hsv_r = cv2.cvtColor(right_region, cv2.COLOR_BGR2HSV)
-        white_mask = cv2.inRange(hsv_r,
-                                 np.array([0, 0, 200], dtype=np.uint8),
-                                 np.array([180, 40, 255], dtype=np.uint8))
+        white_mask = cv2.inRange(
+            hsv_r,
+            np.array([0, 0, 200], dtype=np.uint8),
+            np.array([180, 40, 255], dtype=np.uint8),
+        )
         white_ratio = np.sum(white_mask > 0) / white_mask.size
         if white_ratio < 0.05:
             return False
@@ -295,10 +307,10 @@ class StateDetector:
         """
         # 搜尋中間 50% 的水平範圍，以及上半部的垂直範圍
         h, w = frame.shape[:2]
-        roi = frame[int(h * 0.3):int(h * 0.7), int(w * 0.2):int(w * 0.8)]
+        roi = frame[int(h * 0.3) : int(h * 0.7), int(w * 0.2) : int(w * 0.8)]
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lo = np.array(FINISH_YELLOW_HSV_LOW,  dtype=np.uint8)
+        lo = np.array(FINISH_YELLOW_HSV_LOW, dtype=np.uint8)
         hi = np.array(FINISH_YELLOW_HSV_HIGH, dtype=np.uint8)
         mask = cv2.inRange(hsv, lo, hi)
 

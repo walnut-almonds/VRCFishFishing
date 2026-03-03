@@ -11,26 +11,33 @@
 
 import cv2
 import numpy as np
+
 from src.config import (
-    WHITE_HSV_LOW, WHITE_HSV_HIGH,
-    FISH_SAT_MIN, FISH_VAL_MIN, FISH_AREA_MIN, FISH_AREA_MAX,
-    PROGRESS_GREEN_HSV_LOW, PROGRESS_GREEN_HSV_HIGH,
-    PROGRESS_SUCCESS_RATIO, PROGRESS_FAIL_RATIO,
+    FISH_AREA_MAX,
+    FISH_AREA_MIN,
+    FISH_SAT_MIN,
+    FISH_VAL_MIN,
+    PROGRESS_FAIL_RATIO,
+    PROGRESS_GREEN_HSV_HIGH,
+    PROGRESS_GREEN_HSV_LOW,
+    PROGRESS_SUCCESS_RATIO,
     TENSION_DEAD_ZONE,
+    WHITE_HSV_HIGH,
+    WHITE_HSV_LOW,
 )
 from src.utils import log
 
 
 class TensionResult:
     """單幀分析結果。"""
-    SUCCESS  = "success"
-    FAIL     = "fail"
+
+    SUCCESS = "success"
+    FAIL = "fail"
     CONTINUE = "continue"
-    NO_UI    = "no_ui"
+    NO_UI = "no_ui"
 
 
 class TensionHandler:
-
     def __init__(self):
         self._last_press = False  # 上一幀的按鍵狀態
 
@@ -79,7 +86,7 @@ class TensionHandler:
             return 0.0
 
         hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
-        lo = np.array(PROGRESS_GREEN_HSV_LOW,  dtype=np.uint8)
+        lo = np.array(PROGRESS_GREEN_HSV_LOW, dtype=np.uint8)
         hi = np.array(PROGRESS_GREEN_HSV_HIGH, dtype=np.uint8)
         mask = cv2.inRange(hsv, lo, hi)
 
@@ -109,7 +116,7 @@ class TensionHandler:
             return self._last_press
 
         white_cy = self._find_white_center_y(region)
-        fish_cy  = self._find_fish_center_y(region)
+        fish_cy = self._find_fish_center_y(region)
 
         log(f"[Tension] white_cy={white_cy} fish_cy={fish_cy}")
 
@@ -135,7 +142,7 @@ class TensionHandler:
     def _find_white_center_y(self, region: np.ndarray) -> float | None:
         """找白色區域的中心 Y（相對於 region 頂部）。"""
         hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
-        lo = np.array(WHITE_HSV_LOW,  dtype=np.uint8)
+        lo = np.array(WHITE_HSV_LOW, dtype=np.uint8)
         hi = np.array(WHITE_HSV_HIGH, dtype=np.uint8)
         mask = cv2.inRange(hsv, lo, hi)
 
@@ -162,9 +169,8 @@ class TensionHandler:
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
-                                       cv2.CHAIN_APPROX_SIMPLE)
-        best_y    = None
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        best_y = None
         best_area = 0
         for cnt in contours:
             area = cv2.contourArea(cnt)
@@ -177,5 +183,5 @@ class TensionHandler:
             # 保留面積最大的候選（最可能是魚圖示）
             if area > best_area:
                 best_area = area
-                best_y    = cy
+                best_y = cy
         return best_y
