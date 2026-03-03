@@ -25,7 +25,9 @@ cffi==2.0.0 \
     --hash=sha256:d9b97165e8aed9272a6bb17c01e3cc5871a594a446ebedc996e2397a1c1ea8ef \
     --hash=sha256:dbd5c7a25a7cb98f5ca55d258b103a2054f859a46ae11aaf23134f9cc0d356ad \
     --hash=sha256:fc33c5141b55ed366cfaad382df24fe7dcbc686de5be719b207bb248e3053dc5
-    # via sounddevice
+    # via
+    #   soundcard
+    #   sounddevice
 mss==10.1.0 \
     --hash=sha256:7182baf7ee16ca569e2804028b6ab9bcbf6be5c46fc2880840f33b513b9cb4f8 \
     --hash=sha256:9179c110cadfef5dc6dc4a041a0cd161c74c379218648e6640b48c6b5cfe8918
@@ -56,6 +58,7 @@ numpy==2.4.2 \
     # via
     #   opencv-python
     #   scipy
+    #   soundcard
     #   vrc-fish-fishing
 opencv-python==4.13.0.92 \
     --hash=sha256:0bc2596e68f972ca452d80f444bc404e08807d021fbba40df26b61b18e01838a \
@@ -104,6 +107,10 @@ scipy==1.17.1 \
     --hash=sha256:eb092099205ef62cd1782b006658db09e2fed75bffcae7cc0d44052d8aa0f484 \
     --hash=sha256:eee2cfda04c00a857206a4330f0c5e3e56535494e30ca445eb19ec624ae75118 \
     --hash=sha256:f8885db0bc2bffa59d5c1b72fad7a6a92d3e80e7257f967dd81abb553a90d293
+    # via vrc-fish-fishing
+soundcard==0.4.5 \
+    --hash=sha256:07272ba927e32cafdf634e4a1ca53b9a3218321a60c7d2e08f54b832a56946aa \
+    --hash=sha256:8a19c3d5486250bb2990dbd91a75ddf9f15cab39f24ff607e5bce812f43b4917
     # via vrc-fish-fishing
 sounddevice==0.5.5 \
     --hash=sha256:05eb9fd6c54c38d67741441c19164c0dae8ce80453af2d8c4ad2e7823d15b722 \
