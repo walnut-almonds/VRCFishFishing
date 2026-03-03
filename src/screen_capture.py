@@ -6,7 +6,7 @@ import mss
 import win32gui
 import win32con
 import cv2
-from config import WINDOW_TITLE, TARGET_WIDTH, TARGET_HEIGHT
+from src.config import WINDOW_TITLE, TARGET_WIDTH, TARGET_HEIGHT
 
 
 class ScreenCapture:

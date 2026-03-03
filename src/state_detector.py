@@ -11,7 +11,7 @@
 import os
 import cv2
 import numpy as np
-from config import (
+from src.config import (
     EXCLAIM_HSV_LOW, EXCLAIM_HSV_HIGH,
     EXCLAIM_MATCH_THRESH, EXCLAIM_DIFF_THRESH, EXCLAIM_TEMPLATE_DIR,
     TENSION_BLUE_HSV_LOW, TENSION_BLUE_HSV_HIGH,
@@ -22,7 +22,7 @@ from config import (
     FINISH_PIXEL_THRESH,
     TARGET_WIDTH, TARGET_HEIGHT,
 )
-from utils import log
+from src.utils import log
 
 
 class StateDetector:

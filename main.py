@@ -11,13 +11,13 @@ import time
 import random
 import sys
 
-from screen_capture import ScreenCapture
-from state_detector  import StateDetector
-from tension_handler import TensionHandler, TensionResult
-from audio_detector  import AudioDetector
-from input_handler   import InputHandler
-from utils           import log, DebugOverlay, Stats
-from config          import (
+from src.screen_capture import ScreenCapture
+from src.state_detector  import StateDetector
+from src.tension_handler import TensionHandler, TensionResult
+from src.audio_detector  import AudioDetector
+from src.input_handler   import InputHandler
+from src.utils           import log, DebugOverlay, Stats
+from src.config          import (
     LOOP_INTERVAL,
     CAST_DELAY_MIN, CAST_DELAY_MAX,
     WAIT_TIMEOUT,

@@ -26,14 +26,14 @@ try:
     pythoncom = importlib.import_module("pythoncom")
 except Exception:
     pythoncom = None
-from config import (
+from src.config import (
     AUDIO_SAMPLE_RATE, AUDIO_CHUNK_SIZE, AUDIO_CHANNELS,
     BITE_SOUND_PATH, BITE_CORR_THRESHOLD, AUDIO_DEBUG_CORR, AUDIO_COOLDOWN,
     BITE_CORR_MARGIN, BITE_CORR_HIT_STREAK,
     BITE_RMS_MULTIPLIER, BITE_RMS_BANDPASS,
     AUDIO_DEBUG_RMS, AUDIO_DEBUG_RMS_INTERVAL,
 )
-from utils import log
+from src.utils import log
 
 # 相容性修正：soundcard 目前仍可能呼叫 np.fromstring(binary)
 # 但 NumPy 2.x 已移除 binary mode，需轉用 np.frombuffer。

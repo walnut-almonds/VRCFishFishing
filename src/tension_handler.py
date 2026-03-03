@@ -11,14 +11,14 @@
 
 import cv2
 import numpy as np
-from config import (
+from src.config import (
     WHITE_HSV_LOW, WHITE_HSV_HIGH,
     FISH_SAT_MIN, FISH_VAL_MIN, FISH_AREA_MIN, FISH_AREA_MAX,
     PROGRESS_GREEN_HSV_LOW, PROGRESS_GREEN_HSV_HIGH,
     PROGRESS_SUCCESS_RATIO, PROGRESS_FAIL_RATIO,
     TENSION_DEAD_ZONE,
 )
-from utils import log
+from src.utils import log
 
 
 class TensionResult:

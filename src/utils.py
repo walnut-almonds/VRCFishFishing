@@ -5,7 +5,7 @@ import time
 import datetime
 import cv2
 import numpy as np
-from config import DEBUG_LOG, DEBUG_OVERLAY, DEBUG_SAVE_FRAMES, DEBUG_FRAME_DIR
+from src.config import DEBUG_LOG, DEBUG_OVERLAY, DEBUG_SAVE_FRAMES, DEBUG_FRAME_DIR
 
 
 # ── 日誌 ──────────────────────────────────────────────────────────────────────

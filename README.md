@@ -12,9 +12,12 @@
 - VRChat 視窗標題可被偵測（預設：`VRChat`）
 
 ## 安裝
-這裡預計會整理成 toml 檔，很急著用的話先使用
 ```bash
-pip install opencv-python numpy mss sounddevice scipy pywin32 pydirectinput
+pip install -r requirements.txt
+```
+或者
+```bash
+uv sync
 ```
 
 ## 使用方式
